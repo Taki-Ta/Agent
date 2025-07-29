@@ -117,6 +117,7 @@ namespace ConsoleApp1
                     if (response.IsSuccessStatusCode)
                     {
                         var fullContent = new StringBuilder();
+                        var toolCalls= new List<ToolCall>();
                         using (var stream = await response.Content.ReadAsStreamAsync())
                         using (var reader = new StreamReader(stream))
                         {
@@ -135,6 +136,10 @@ namespace ConsoleApp1
                                     {
                                         var streamResponse = JsonSerializer.Deserialize<VllmStreamResponse>(jsonData, jsonOptions);
                                         string? delta = streamResponse?.choices[0]?.delta?.content;
+                                        if (streamResponse?.choices[0]?.delta?.tool_calls?.Count > 0)
+                                        {
+                                            toolCalls.AddRange(streamResponse.choices[0].delta.tool_calls);
+                                        }
                                         if (!string.IsNullOrEmpty(delta))
                                         {
                                             onDeltaReceived(delta);
@@ -148,7 +153,7 @@ namespace ConsoleApp1
                                 }
                             }
                         }
-                        return new Message(fullContent.ToString(), null);
+                        return new Message(fullContent.ToString(), toolCalls);
                     }
                     else
                     {

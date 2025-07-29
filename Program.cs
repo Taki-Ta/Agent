@@ -18,6 +18,7 @@ public record VllmResponse(string? content, List<Choice> choices);
 public record Choice(Message message);
 public record Message(string? content, List<ToolCall>? tool_calls);
 public record ToolCall(string id, string type, FunctionCall function);
+[JsonConverter(typeof(FunctionCallConverter))]
 public record FunctionCall(string name, string arguments);
 
 // Represents the result of our local tool execution
@@ -69,7 +70,7 @@ public class Program
             if (string.IsNullOrWhiteSpace(userInput) || userInput.ToLower() == "exit") break;
 
             // 处理用户输入，默认使用流式输出
-            await conversationProcessor.ProcessUserInputAsync(userInput, useStreaming: false);
+            await conversationProcessor.ProcessUserInputAsync(userInput, useStreaming: true);  
         }
 
         Console.WriteLine("感谢您的使用！");
