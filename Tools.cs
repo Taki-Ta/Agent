@@ -51,6 +51,14 @@ namespace ConsoleApp1.Tool
             try
             {
                 var argsDoc = JsonDocument.Parse(arguments);
+                while(argsDoc.RootElement.ValueKind == JsonValueKind.String)
+                {
+                    var content = argsDoc.RootElement.GetString() ?? "";
+                    if (content.Contains('{'))
+                        argsDoc = JsonDocument.Parse(content ?? "{}");
+                    else
+                        break;
+                }
                 if (!argsDoc.RootElement.TryGetProperty("template_name", out var templateNameElement))
                 {
                     return "错误：缺少参数 'template_name'。";

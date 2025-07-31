@@ -36,9 +36,9 @@ namespace ConsoleApp1
         /// <param name="enableThinking">是否启用思考模式</param>
         /// <returns>AI响应消息</returns>
         public async Task<Message> CallAsync(
-            List<ChatMessage> messages, 
-            bool useStreaming = false, 
-            Action<string>? onDeltaReceived = null, 
+            List<ChatMessage> messages,
+            bool useStreaming = false,
+            Action<string>? onDeltaReceived = null,
             bool enableThinking = true)
         {
             if (useStreaming && onDeltaReceived != null)
@@ -117,7 +117,9 @@ namespace ConsoleApp1
                     if (response.IsSuccessStatusCode)
                     {
                         var fullContent = new StringBuilder();
-                        var toolCalls= new List<ToolCall>();
+                        var toolCalls = new List<ToolCall>();
+                        var toolCallBuilders = new List<(string Id, string Name, StringBuilder ArgumentsBuilder)>();
+
                         using (var stream = await response.Content.ReadAsStreamAsync())
                         using (var reader = new StreamReader(stream))
                         {
@@ -135,25 +137,46 @@ namespace ConsoleApp1
                                     try
                                     {
                                         var streamResponse = JsonSerializer.Deserialize<VllmStreamResponse>(jsonData, jsonOptions);
-                                        string? delta = streamResponse?.choices[0]?.delta?.content;
+
                                         if (streamResponse?.choices[0]?.delta?.tool_calls?.Count > 0)
                                         {
-                                            toolCalls.AddRange(streamResponse.choices[0].delta.tool_calls);
+                                            foreach (var toolCallChunk in streamResponse.choices[0].delta.tool_calls)
+                                            {
+                                                if (!string.IsNullOrEmpty(toolCallChunk.function.name))
+                                                {
+                                                    toolCallBuilders.Add((toolCallChunk.id, toolCallChunk.function.name, new StringBuilder(toolCallChunk.function.arguments)));
+                                                }
+                                                else if (toolCallBuilders.Count > 0)
+                                                {
+                                                    toolCallBuilders[toolCallBuilders.Count - 1].ArgumentsBuilder.Append(toolCallChunk.function.arguments);
+                                                }
+                                            }
                                         }
+
+                                        string? delta = streamResponse?.choices[0]?.delta?.content;
                                         if (!string.IsNullOrEmpty(delta))
                                         {
                                             onDeltaReceived(delta);
                                             fullContent.Append(delta);
                                         }
                                     }
-                                    catch (JsonException)
+                                    catch (JsonException e)
                                     {
-                                        // Ignore lines that are not valid JSON
+                                        Console.WriteLine($"[JSON Error] Failed to parse stream chunk: {e.Message} | Data: {jsonData}");
                                     }
                                 }
                             }
                         }
-                        return new Message(fullContent.ToString(), toolCalls);
+                        foreach (var builder in toolCallBuilders)
+                        {
+                            var argument = builder.ArgumentsBuilder.ToString();
+                            if (string.IsNullOrWhiteSpace(argument))
+                                argument = "{}";
+                            var functionCall = new FunctionCall(builder.Name, argument);
+                            toolCalls.Add(new ToolCall(builder.Id, "function", functionCall));
+                        }
+
+                        return new Message(fullContent.ToString(), toolCalls.Count > 0 ? toolCalls : null);
                     }
                     else
                     {
@@ -170,4 +193,4 @@ namespace ConsoleApp1
             }
         }
     }
-} 
+}

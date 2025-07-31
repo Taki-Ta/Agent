@@ -11,10 +11,12 @@ public class FunctionCallConverter : JsonConverter<FunctionCall>
         using var doc = JsonDocument.ParseValue(ref reader);
         var root = doc.RootElement;
 
-        var name = root.GetProperty("name").GetString();
+        var name = root.TryGetProperty("name", out var argNameProp) && argNameProp.ValueKind != JsonValueKind.Null
+            ? argNameProp.GetString()
+            : "";
         var arguments = root.TryGetProperty("arguments", out var argProp) && argProp.ValueKind != JsonValueKind.Null
-            ? argProp.GetRawText()
-            : "{}";
+            ? argProp.GetString()
+            : "";
 
         return new FunctionCall(name, arguments);
     }
