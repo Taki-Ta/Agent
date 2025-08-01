@@ -16,7 +16,7 @@ public class FunctionCallConverter : JsonConverter<FunctionCall>
             : "";
         var arguments = root.TryGetProperty("arguments", out var argProp) && argProp.ValueKind != JsonValueKind.Null
             ? argProp.GetString()
-            : "";
+            : "{}";
 
         return new FunctionCall(name, arguments);
     }

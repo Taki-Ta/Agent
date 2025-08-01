@@ -170,6 +170,7 @@ namespace ConsoleApp1
                         foreach (var builder in toolCallBuilders)
                         {
                             var argument = builder.ArgumentsBuilder.ToString();
+                            argument = argument.Replace("{}", "");
                             if (string.IsNullOrWhiteSpace(argument))
                                 argument = "{}";
                             var functionCall = new FunctionCall(builder.Name, argument);
